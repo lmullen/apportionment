@@ -1,0 +1,97 @@
+---
+title: "Explore"
+output: html_notebook
+---
+
+```{r setup}
+library(tidyverse)
+library(USAboundaries)
+censuses <- read_csv("data/censuses.csv")
+apportionments <- read_csv("data/apportionments.csv") 
+seats <- apportionments %>% 
+  left_join(censuses, by = "census_name") %>% 
+  left_join(state_codes %>% select(state = state_abbr, state_name), by = "state") %>% 
+  arrange(state, year_apportionment) %>% 
+  group_by(state) %>% 
+  mutate(seats_added = seats - lag(seats))
+```
+
+Here is the data once joined.
+
+```{r}
+seats
+```
+
+An overview plot of apportionment.
+
+```{r}
+ggplot(seats, aes(x = year_apportionment, y = seats, group = state)) +
+  geom_line() +
+  labs(title = "Seats per state")
+```
+
+Seats when faceted
+
+```{r, fig.height=4}
+ggplot(seats, aes(x = year_apportionment, y = seats, group = state)) +
+  geom_line() +
+  labs(title = "Seats per state") +
+  facet_wrap(~state, ncol = 5)
+```
+
+Seats as a percentage of the total house
+
+```{r, fig.height=4}
+ggplot(seats, aes(x = year_apportionment, y = seats / house_size, group = state)) +
+  geom_line() +
+  labs(title = "Seats per state") + 
+  facet_wrap(~state, ncol = 5)
+```
+
+Plot of seats added
+
+```{r}
+ggplot(seats, aes(x = year_apportionment, y = seats_added, group = state)) +
+  geom_line() +
+  labs(title = "Seats added per state")
+```
+
+Plot the seats for single state
+
+```{r}
+plot_state <- function(s) {
+  plot_data <- seats %>% filter(state == s)
+  ggplot(plot_data, aes(x = year_apportionment, y = seats)) +
+    geom_line() +
+    labs(title = str_glue("Apportionment for {s}")) +
+    ylim(0, max(plot_data$seats))
+}
+plot_state("NY")
+plot_state("CA")
+plot_state("VA")
+plot_state("MA")
+plot_state("SD")
+plot_state("SC")
+```
+
+Plot of changes per year:
+
+```{r}
+plot_added <- function(s) {
+  plot_data <- seats %>% filter(state == s, !is.na(seats_added))
+  max_change <- max(abs(plot_data$seats_added))
+  ggplot(plot_data, aes(x = year_apportionment, y = seats_added)) +
+    geom_hline(yintercept = 0, color = "red") +
+    geom_line() + geom_point() +
+    labs(title = str_glue("Apportionment for {s}")) +
+    ylim(-max_change, max_change)
+}
+plot_added("NY")
+plot_added("CA")
+plot_added("VA")
+plot_added("MA")
+plot_added("SD")
+plot_added("SC")
+```
+
+
